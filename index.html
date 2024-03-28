@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playground</title>
+  </head>
+  <body>
+    <script type="module">
+      import { bindReact } from "./dist/main.module.mjs";
+      import { h, Component, render } from "https://esm.sh/preact";
+      import * as PreactHooks from "https://esm.sh/preact/hooks";
+      import * as React from "https://esm.sh/preact/compat";
+      import htm from "https://esm.sh/htm";
+
+      const { memo } = React;
+
+      const create = bindReact(React);
+      const logger = (set, get) => {
+        return [
+          (x) => {
+            set(x);
+            console.log(`set: `, x);
+          },
+          () => {
+            const state = get();
+            console.log(`get: `, state);
+            return state;
+          },
+        ];
+      };
+
+      const useStore1 = create(
+        (set, get) => ({
+          counter: {
+            count1: 1,
+          },
+          inc: () =>
+            set((state) => {
+              state.counter.count1 += 1;
+            }),
+          dec: () =>
+            set((state) => {
+              state.counter.count1 -= 1;
+            }),
+          name: "haha",
+          setName: (name) => set({ name }),
+        }),
+        logger
+      );
+
+      const html = htm.bind(h);
+
+      const NameBar = memo(() => {
+        const { name } = useStore1();
+        return html`<fieldset>
+          <legend>Name</legend>
+          ${name} ${Math.random()}
+        </fieldset>`;
+      });
+
+      const Counter = memo(() => {
+        const {
+          counter: { count1 },
+          inc,
+          dec,
+        } = useStore1();
+        return html`
+          <button
+            onClick=${inc}
+            onContextmenu=${(ev) => {
+              ev.preventDefault();
+              dec();
+            }}
+          >
+            count: ${count1}
+          </button>
+          <span>${Math.random()}</span>
+        `;
+      });
+
+      function App(props) {
+        const { setName } = useStore1();
+        return html`<h1>Hello ${props.name}!</h1>
+          ${Math.random()}
+          <hr />
+          <${NameBar} />
+          <hr />
+          <${Counter} />
+          <input
+            defaultValue=${useStore1.get().name}
+            onChange=${(ev) => setName(ev.target.value)}
+          /> `;
+      }
+
+      render(html`<${App} name="World" />`, document.body);
+    </script>
+  </body>
+</html>
