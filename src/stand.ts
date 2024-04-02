@@ -41,17 +41,25 @@ class Store<T> {
   }
 }
 
-type SetupFn<T> = (
-  set: (x: Partial<T> | ((x: T) => Partial<T>)) => void,
-  get: () => T
-) => T;
-type Middleware<T> = (
-  set: (x: Partial<T> | ((x: T) => Partial<T>)) => void,
-  get: () => T
-) => [typeof set, typeof get];
+type SetFn<T> = (x: Partial<T> | ((x: T) => Partial<T>)) => void;
+type GetFn<T> = () => T;
+
+type SetupFn<T> = (set: SetFn<T>, get: GetFn<T>) => T;
+type Middleware<T> = (set: SetFn<T>, get: GetFn<T>) => [typeof set, typeof get];
 type Selector<T, S = T> = (x: T) => S;
 // type SelectorPath<T> = keyof T | (string & NonNullable<unknown>);
 type SelectorPath<T> = keyof T;
+
+type UseStore<State> = {
+  <T>(selector: Selector<State, T>): T;
+  <T>(selector: Selector<State>): State;
+  <P extends SelectorPath<State>>(selector: P): State[P];
+  (): State;
+  set: SetFn<State>;
+  get: GetFn<State>;
+  subscribe: (listener: Listener<State>) => () => void;
+  _store: Store<State>;
+};
 
 export function bind(
   build: () => {
@@ -80,10 +88,6 @@ export function bind(
       }
     >();
 
-    function useStore<T>(selector: Selector<State, T>): T;
-    function useStore<T>(selector: Selector<State>): State;
-    function useStore<P extends SelectorPath<State>>(selector: P): State[P];
-    function useStore(): State;
     function useStore<T>(selector?: Selector<State, T> | SelectorPath<State>) {
       const select = (): any => {
         const state = get();
@@ -132,14 +136,12 @@ export function bind(
       });
     }
 
-    useStore.set = set as (x: State) => void;
-    useStore.get = get as () => State;
-    useStore.subscribe = store.subscribe.bind(store) as (
-      listener: Listener<State>
-    ) => () => void;
+    useStore.set = set;
+    useStore.get = get;
+    useStore.subscribe = store.subscribe.bind(store);
     useStore._store = store;
 
-    return useStore;
+    return useStore as UseStore<State>;
   };
 }
 
