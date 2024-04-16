@@ -113,14 +113,20 @@ export function bind(
             : [];
         deps_arr.forEach((x) => deps.add(x));
 
+        const update = () => {
+          const selected = select();
+          setState(selected);
+        };
+
         const unsubscribe = store.subscribe((state, patches) => {
           const isChanged = patches.some(({ path }) =>
             Array.from(deps).some((dep) => path.startsWith(dep as any))
           );
           if (!isChanged) return;
-          const selected = select();
-          setState(selected);
+          update();
         });
+
+        update();
         return () => {
           unsubscribe();
           envs.delete(symbol);
@@ -128,12 +134,15 @@ export function bind(
       });
 
       const state = getState();
-      return new Proxy(state, {
-        get(target, p, receiver) {
-          deps.add(p as any);
-          return Reflect.get(target, p, receiver);
-        },
-      });
+      if (selector === undefined) {
+        return new Proxy(state, {
+          get(target, p, receiver) {
+            deps.add(p as any);
+            return Reflect.get(target, p, receiver);
+          },
+        });
+      }
+      return state;
     }
 
     useStore.set = set;
