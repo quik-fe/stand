@@ -61,6 +61,12 @@ type UseStore<State> = {
   _store: Store<State>;
 };
 
+/**
+ * Binds a state and effect manager to a React component.
+ *
+ * @param {() => { createState: (x: any) => [() => any, (x: any) => any]; createEffect: (eff: () => () => any) => any; symbol: symbol; }} build - A function that builds the state and effect manager.
+ * @return {function} A function that creates a state and effect manager.
+ */
 export function bind(
   build: () => {
     createState: (x: any) => [() => any, (x: any) => any];
@@ -68,7 +74,14 @@ export function bind(
     symbol: symbol;
   }
 ) {
-  return function create<State>(
+  /**
+   * Creates a store with the given setup and middlewares.
+   *
+   * @param {SetupFn<State>} setup - The function that sets up the initial state and effects.
+   * @param {Middleware<State>[]} middlewares - The array of middlewares to apply to the store.
+   * @return {UseStore<State>} The store object with the specified setup and middlewares.
+   */
+  function create<State>(
     setup: SetupFn<State>,
     ...middlewares: Middleware<State>[]
   ) {
@@ -88,6 +101,12 @@ export function bind(
       }
     >();
 
+    /**
+     * A function that manages state and effects based on the provided selector.
+     *
+     * @param {Selector<State, T> | SelectorPath<State>} selector - Optional selector for state management.
+     * @return {any} The updated state based on the selector.
+     */
     function useStore<T>(selector?: Selector<State, T> | SelectorPath<State>) {
       const select = (): any => {
         const state = get();
@@ -151,15 +170,24 @@ export function bind(
     useStore._store = store;
 
     return useStore as UseStore<State>;
-  };
+  }
+
+  return create;
 }
 
 const NONE = Symbol();
+/**
+ * Binds the given React library to create a state and effect manager.
+ *
+ * @param {any} react - The React library to bind.
+ * @return {function} A function that creates a state and effect manager.
+ */
 export const bindReact = (react: any) =>
   bind(() => {
     const { useState, useEffect, useRef } = react;
     const stateRef = useRef(NONE);
-    const emit = useState()[1];
+    // NOTE: if based boolean, it may cause the rendering to be merged by fiber.
+    const markWorkInProgressReceivedUpdate = useState({})[1];
     const [symbol] = useState(() => Symbol());
     return {
       createState: (state: any) => {
@@ -174,7 +202,7 @@ export const bindReact = (react: any) =>
           () => stateRef.current,
           (x) => {
             stateRef.current = x;
-            emit((x: any) => !x);
+            markWorkInProgressReceivedUpdate({});
           },
         ];
       },
@@ -184,6 +212,13 @@ export const bindReact = (react: any) =>
   });
 
 const React = (window as any).React;
+/**
+ * Creates a store with the given setup and middlewares.
+ *
+ * @param {SetupFn<State>} setup - The function that sets up the initial state and effects.
+ * @param {Middleware<State>[]} middlewares - The array of middlewares to apply to the store.
+ * @return {UseStore<State>} The store object with the specified setup and middlewares.
+ */
 export const create = React
   ? bindReact(React)
   : () => {
