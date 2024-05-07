@@ -40,6 +40,7 @@ const useAppStore = create<{
       // immer style is working
       set((state) => {
         state.counter.count1 += 1;
+        return state;
       }),
     dec: () =>
       // update style is working

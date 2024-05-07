@@ -9,8 +9,12 @@ class Store<T> {
   setState(partial: Partial<T> | ((x: T) => Partial<T>)) {
     const patches = [] as Patch[];
     if (typeof partial === "function") {
-      const { patches: newPatches } = produce(this.state, partial);
+      const { patches: newPatches, result } = produce(this.state, partial);
       patches.push(...newPatches);
+      this.state = {
+        ...this.state,
+        ...result,
+      };
     } else {
       Object.entries(partial).forEach(([k, v]) =>
         patches.push({
