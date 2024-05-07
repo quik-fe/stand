@@ -11,10 +11,18 @@ class Store<T> {
     if (typeof partial === "function") {
       const { patches: newPatches, result } = produce(this.state, partial);
       patches.push(...newPatches);
-      this.state = {
-        ...this.state,
-        ...result,
-      };
+      if (result && this.state !== result) {
+        this.state = {
+          ...this.state,
+          ...result,
+        };
+        patches.push(
+          ...Object.entries(result).map(([path, value]) => ({
+            path,
+            value,
+          }))
+        );
+      }
     } else {
       Object.entries(partial).forEach(([k, v]) =>
         patches.push({
