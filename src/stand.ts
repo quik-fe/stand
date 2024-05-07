@@ -91,12 +91,20 @@ export function bind(
   ) {
     const store = new Store<State>();
 
-    const [set, get] = middlewares.reduce(
-      ([set, get], middleware) => middleware(set, get),
-      [store.setState.bind(store), store.getState.bind(store)]
-    );
+    // NOTE: ensure setter getter for middleware
+    const handlers = {
+      setter: store.setState.bind(store),
+      getter: store.getState.bind(store),
+      setter_ref: (x: any) => handlers.setter(x),
+      getter_ref: () => handlers.getter(),
+    };
+    // setup before middleware setup
+    store.setState(setup(handlers.setter_ref, handlers.getter_ref));
 
-    store.setState(setup(set, get));
+    [handlers.setter, handlers.getter] = middlewares.reduce(
+      ([set, get], middleware) => middleware(set, get),
+      [handlers.setter, handlers.getter]
+    );
 
     const envs = new WeakMap<
       symbol,
@@ -113,7 +121,7 @@ export function bind(
      */
     function useStore<T>(selector?: Selector<State, T> | SelectorPath<State>) {
       const select = (): any => {
-        const state = get();
+        const state = handlers.getter_ref();
         return typeof selector === "function"
           ? selector(state)
           : selector
@@ -130,7 +138,7 @@ export function bind(
       createEffect(() => {
         const deps_arr =
           typeof selector === "function"
-            ? produce(get(), selector).deps
+            ? produce(handlers.getter_ref(), selector).deps
             : selector
             ? [selector as any]
             : [];
@@ -168,8 +176,8 @@ export function bind(
       return state;
     }
 
-    useStore.set = set;
-    useStore.get = get;
+    useStore.set = handlers.setter_ref;
+    useStore.get = handlers.getter_ref;
     useStore.subscribe = store.subscribe.bind(store);
     useStore._store = store;
 

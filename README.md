@@ -45,6 +45,13 @@ const useAppStore = create<{
     dec: () =>
       // update style is working
       set({ counter: { count1: get().counter.count1 - 1 } }),
+    mul: (k) =>
+      // reducer setter is working
+      set(state => ({
+        counter: : {
+          count1: state.counter.count1 * k
+        }
+      }))
   }),
   logger,
   /** More middleware can be placed here  */
@@ -60,4 +67,5 @@ const App = () => {
 ```
 
 # license
+
 MIT
