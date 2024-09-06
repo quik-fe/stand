@@ -231,7 +231,7 @@ export const bindReact = (react: any) =>
     };
   });
 
-const React = (window as any).React;
+const React = (globalThis as any).React;
 /**
  * Creates a store with the given setup and middlewares.
  *
