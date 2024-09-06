@@ -173,7 +173,8 @@ export function bind(
         update();
         return () => {
           unsubscribe();
-          envs.delete(symbol);
+          // NOTE: Because it is a weakmap, I don't think it needs to be deleted, and the effect update should not affect the deps array.
+          // envs.delete(symbol);
         };
       });
 
