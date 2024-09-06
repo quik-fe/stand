@@ -1,5 +1,7 @@
 import { Patch, produce } from "./produce";
 
+const isServer = typeof window === "undefined";
+
 type Listener<State> = (state: State, patches: Patch[]) => void;
 
 class Store<T> {
@@ -144,6 +146,9 @@ export function bind(
       const { deps } = envs.get(symbol)!;
 
       createEffect(() => {
+        // NOTE: never effects when run in server
+        if (isServer) return () => {};
+
         const deps_arr =
           typeof selector === "function"
             ? produce(handlers.getter_ref(), selector).deps
@@ -176,7 +181,9 @@ export function bind(
       if (selector === undefined) {
         return new Proxy(state, {
           get(target, p, receiver) {
-            deps.add(p as any);
+            if (!isServer) {
+              deps.add(p as any);
+            }
             return Reflect.get(target, p, receiver);
           },
         });
@@ -208,7 +215,8 @@ export const bindReact = (react: any) =>
     const stateRef = useRef(NONE);
     // NOTE: if based boolean, it may cause the rendering to be merged by fiber.
     const markWorkInProgressReceivedUpdate = useState({})[1];
-    const [symbol] = useState(() => Symbol());
+    // NOTE: Symbols cannot be used as weak map keys in Node.js, so empty objects are used
+    const [symbol] = useState(() => ({}));
     return {
       createState: (state: any) => {
         if (stateRef.current === NONE) {
@@ -226,6 +234,7 @@ export const bindReact = (react: any) =>
           },
         ];
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/rules-of-hooks
       createEffect: (x) => useEffect(x, []),
       symbol,
     };

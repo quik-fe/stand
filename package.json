@@ -1,6 +1,6 @@
 {
   "name": "@quik-fe/stand",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
