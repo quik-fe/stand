@@ -1,79 +1,8 @@
-import { Patch, produce } from "./produce";
+import { produce } from "./produce";
+import { Store } from "./Store";
+import { SetupFn, Middleware, Selector, SelectorPath, UseStore } from "./types";
 
 const isServer = typeof window === "undefined";
-
-type Listener<State> = (state: State, patches: Patch[]) => void;
-
-class Store<T> {
-  private state = {} as T;
-  private listeners = new Set<Listener<T>>();
-
-  setState(partial: Partial<T> | ((x: T) => Partial<T>)) {
-    const patches = [] as Patch[];
-    if (typeof partial === "function") {
-      const { patches: newPatches, result } = produce(this.state, partial);
-      patches.push(...newPatches);
-      if (result && this.state !== result) {
-        this.state = {
-          ...this.state,
-          ...result,
-        };
-        patches.push(
-          ...Object.entries(result).map(([path, value]) => ({
-            path,
-            value,
-          }))
-        );
-      }
-    } else {
-      Object.entries(partial).forEach(([k, v]) =>
-        patches.push({
-          path: k,
-          value: v,
-        })
-      );
-      this.state = {
-        ...this.state,
-        ...partial,
-      };
-    }
-    this.listeners.forEach((listener) => listener(this.state, patches));
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  subscribe(listener: Listener<T>) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  dispose() {
-    this.state = {} as T;
-    this.listeners.clear();
-  }
-}
-
-type SetFn<T> = (x: Partial<T> | ((x: T) => Partial<T>)) => void;
-type GetFn<T> = () => T;
-
-type SetupFn<T> = (set: SetFn<T>, get: GetFn<T>) => T;
-type Middleware<T> = (set: SetFn<T>, get: GetFn<T>) => [typeof set, typeof get];
-type Selector<T, S = T> = (x: T) => S;
-// type SelectorPath<T> = keyof T | (string & NonNullable<unknown>);
-type SelectorPath<T> = keyof T;
-
-type UseStore<State> = {
-  <T>(selector: Selector<State, T>): T;
-  <T>(selector: Selector<State>): State;
-  <P extends SelectorPath<State>>(selector: P): State[P];
-  (): State;
-  set: SetFn<State>;
-  get: GetFn<State>;
-  subscribe: (listener: Listener<State>) => () => void;
-  _store: Store<State>;
-};
 
 /**
  * Binds a state and effect manager to a React component.
