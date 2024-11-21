@@ -1,5 +1,5 @@
-let tracking = false;
-let triggering = false;
+let tracking = true;
+let triggering = true;
 const tracking_stack: boolean[] = [];
 const triggering_stack: boolean[] = [];
 const pauseTracking = () => {
