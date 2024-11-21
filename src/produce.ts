@@ -1,7 +1,9 @@
 let tracking = true;
 let triggering = true;
+let packing = true;
 const tracking_stack: boolean[] = [];
 const triggering_stack: boolean[] = [];
+const packing_stack: boolean[] = [];
 const pauseTracking = () => {
   tracking_stack.push(tracking);
   tracking = false;
@@ -12,6 +14,11 @@ const enableTracking = () => {
 };
 const resumeTracking = () => {
   tracking = tracking_stack.pop() ?? true;
+  return tracking;
+};
+const resetTracking = () => {
+  tracking = true;
+  tracking_stack.length = 0;
 };
 const pauseTriggering = () => {
   triggering_stack.push(triggering);
@@ -23,20 +30,58 @@ const enableTriggering = () => {
 };
 const resumeTriggering = () => {
   triggering = triggering_stack.pop() ?? true;
+  return triggering;
+};
+const resetTriggering = () => {
+  triggering = true;
+  triggering_stack.length = 0;
+};
+const pausePacking = () => {
+  packing_stack.push(packing);
+  packing = false;
+};
+const enablePacking = () => {
+  packing_stack.push(packing);
+  packing = true;
+};
+const resumePacking = () => {
+  packing = packing_stack.pop() ?? true;
+  return packing;
+};
+const resetPacking = () => {
+  packing = true;
+  packing_stack.length = 0;
 };
 
 export const handlers = {
   pauseTracking,
   enableTracking,
   resumeTracking,
+  resetTracking,
+
   pauseTriggering,
   enableTriggering,
   resumeTriggering,
+  resetTriggering,
+
+  pausePacking,
+  enablePacking,
+  resumePacking,
+  resetPacking,
 };
+
+const proxy2raw = new WeakMap<any, any>();
+export const toRaw = <T>(x: T): T => {
+  while (proxy2raw.has(x)) {
+    x = proxy2raw.get(x)!;
+  }
+  return x;
+};
+export const isProxy = (x: any): boolean => proxy2raw.has(x);
 
 export type Patch = { path: string; value: any };
 export function produce<State, Ret>(
-  baseObject: any,
+  baseObject: State,
   operation: (x: State) => Ret,
   patchCallback?: (patch: Patch) => any
 ) {
@@ -52,8 +97,12 @@ export function produce<State, Ret>(
         const value = Reflect.get(target, property, receiver);
         const dep = `${path}${path ? "." : ""}${String(property)}`;
         if (tracking) topDeps.add(dep);
-        if (value && typeof value === "object" && value !== null) {
-          return createProxy(value, dep, topDeps);
+        if (packing) {
+          if (value && typeof value === "object" && value !== null) {
+            const proxy = createProxy(value, dep, topDeps);
+            proxy2raw.set(proxy, value);
+            return proxy;
+          }
         }
         return value;
       },
