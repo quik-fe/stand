@@ -1,4 +1,4 @@
-import { Patch, produce } from "./produce";
+import { Patch, produce, handlers } from "./produce";
 
 export type Listener<State> = (state: State, patches: Patch[]) => void;
 export class Store<T> {
@@ -8,19 +8,27 @@ export class Store<T> {
   setState(partial: Partial<T> | ((x: T) => Partial<T>)) {
     const patches = [] as Patch[];
     if (typeof partial === "function") {
-      const { patches: newPatches, result } = produce(this.state, partial);
-      patches.push(...newPatches);
-      if (result && this.state !== result) {
-        this.state = {
-          ...this.state,
-          ...result,
-        };
-        patches.push(
-          ...Object.entries(result).map(([path, value]) => ({
-            path,
-            value,
-          }))
-        );
+      try {
+        // NOTE: 因为这里不需要 deps 返回，所以也不需要收集依赖
+        handlers.pauseTracking();
+        handlers.pausePacking();
+        const { patches: newPatches, result } = produce(this.state, partial);
+        patches.push(...newPatches);
+        if (result && this.state !== result) {
+          this.state = {
+            ...this.state,
+            ...result,
+          };
+          patches.push(
+            ...Object.entries(result).map(([path, value]) => ({
+              path,
+              value,
+            }))
+          );
+        }
+      } finally {
+        handlers.resumeTracking();
+        handlers.resumePacking();
       }
     } else {
       Object.entries(partial).forEach(([k, v]) =>
